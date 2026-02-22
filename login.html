@@ -372,7 +372,7 @@
 
     // وظيفة تسجيل الدخول
     document.getElementById('loginExecute').onclick = async (e) => {
-    e.preventDefault(); // منع الصفحة من التحميل
+    e.preventDefault(); 
 
     const email = document.getElementById('lEmail').value.trim();
     const pass = document.getElementById('lPass').value;
@@ -382,16 +382,15 @@
     }
 
     try {
-        // إظهار مؤشر تحميل
         Swal.fire({ title: 'جاري التحقق...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
-        // 1. محاولة تسجيل الدخول
+        // 1. تسجيل الدخول
         const res = await signInWithEmailAndPassword(auth, email, pass);
         const user = res.user;
 
-        // 2. التحقق: هل الإيميل متفعل؟
+        // 2. التحقق من تفعيل الإيميل
         if (!user.emailVerified) {
-            await auth.signOut(); // نخرجه فوراً لأنه لم يفعل الحساب
+            await auth.signOut();
             return Swal.fire({
                 icon: 'error',
                 title: 'الحساب غير مفعل!',
@@ -402,31 +401,26 @@
                 cancelButtonText: 'إغلاق'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    // حركة صايعة: لو نسي يفعل، يقدر يبعت لينك جديد من هنا
                     await sendEmailVerification(user);
                     Swal.fire({ icon: 'success', text: 'تم إرسال رابط تفعيل جديد لبريدك.' });
                 }
             });
         }
 
-        // 3. لو مفعل، نجيب بياناته من Firestore
+        // 3. جلب البيانات من Firestore
         const userSnap = await getDoc(doc(db, "users", user.uid));
         
         if (userSnap.exists()) {
             const userData = userSnap.data();
             
-            // 4. التوجيه المباشر حسب النوع (فني أو عميل)
+            // 4. التوجيه الصحيح (هنا الأقواس اتظبطت)
             if (userData.role === 'provider') {
-                if (userData.isProfileComplete === true) {
-                    window.location.replace("provider-dashboard.html"); 
-                } else {
-                    window.location.replace("provider_setup.html"); 
-                }
+                window.location.replace("provider.html"); 
             } else {
                 window.location.replace("client.html");
             }
         } else {
-            Swal.fire({ icon: 'error', title: 'خطأ في البيانات', text: 'بيانات الحساب غير مكتملة في قاعدة البيانات.' });
+            Swal.fire({ icon: 'error', title: 'خطأ', text: 'بيانات الحساب غير موجودة في قاعدة البيانات.' });
         }
 
     } catch (e) {
@@ -435,19 +429,18 @@
         
         if (e.code === 'auth/user-not-found') errorMsg = "هذا البريد الإلكتروني غير مسجل لدينا.";
         else if (e.code === 'auth/wrong-password') errorMsg = "كلمة المرور التي أدخلتها غير صحيحة.";
-        else if (e.code === 'auth/network-request-failed') errorMsg = "فشل الاتصال بالإنترنت، يرجى التحقق من شبكتك.";
+        else if (e.code === 'auth/network-request-failed') errorMsg = "فشل الاتصال بالإنترنت.";
 
         Swal.fire({
             title: 'عذراً، لم نتمكن من الدخول',
             text: errorMsg,
             icon: 'error',
             confirmButtonText: 'إعادة المحاولة',
-            confirmButtonColor: '#ff5a00',
-            timer: 4000,
-            timerProgressBar: true
+            confirmButtonColor: '#ff5a00'
         });
     }
 };
+
 
 
 
@@ -455,57 +448,45 @@
     // تسجيل الدخول بجوجل الذكي
 document.getElementById('googleExecute').onclick = async () => {
     try {
-        // بنفتح النافذة
+        // 1. فتح نافذة جوجل
         const res = await signInWithPopup(auth, googleProvider);
         const userRef = doc(db, "users", res.user.uid);
         const userSnap = await getDoc(userRef);
         
         if (userSnap.exists()) {
-            // 1. المستخدم ده مسجل عندنا قبل كدة (إحنا عارفين هويته)
+            // مستخدم قديم - توجيه مباشر
             const userData = userSnap.data();
-            console.log("مستخدم قديم، دوره هو:", userData.role);
-            
             if (userData.role === 'provider') {
-                window.location.href = userData.isProfileComplete ? "provider-dashboard.html" : "provider_setup.html";
+                window.location.href = "provider.html";
             } else {
                 window.location.href = "client.html";
             }
         } else {
-            // 2. مستخدم جديد تماماً بيسجل لأول مرة بجوجل
-            // هنا بقى "الذكاء": هنشوف هو كان واقف على أنهي تابة قبل ما يدوس
-            
-            console.log("مستخدم جديد، هيتسجل حسب التابة المفتوحة:", selectedRole);
-
+            // مستخدم جديد - حفظ بيانات وتوجيه
             await setDoc(userRef, {
                 uid: res.user.uid,
                 name: res.user.displayName,
                 email: res.user.email,
-                role: selectedRole, // دي المتغيرة اللي بتتغير لما بيدوس على عميل أو مزود
+                role: selectedRole,
                 isProfileComplete: false,
                 createdAt: new Date()
             });
 
-            // توجيهه حسب الاختيار اللي كان مختاره في الصفحة
             if (selectedRole === 'provider') {
-                window.location.href = "provider_setup.html";
+                window.location.href = "provider.html";
             } else {
                 window.location.href = "client.html";
             }
         }
     } catch (e) { 
-        // التنبيه بشكل عصري واحترافي
+        console.error("Google Auth Error:", e);
         Swal.fire({
             title: 'عذراً، فشل الاتصال',
-            text: '  جاري العمل علي حل هذه ال',
+            text: 'حدث خطأ أثناء تسجيل الدخول عبر جوجل، حاول مرة أخرى.',
             icon: 'error',
             confirmButtonText: 'فهمت',
-            confirmButtonColor: '#ff5a00', // لون البراند بتاعك
-            background: '#ffffff',
-            borderRadius: '20px',
-            customClass: {
-                title: 'swal-title-custom',
-                confirmButton: 'swal-button-custom'
-            }
+            confirmButtonColor: '#ff5a00',
+            borderRadius: '20px'
         });
     }
 };
