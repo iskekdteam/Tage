@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sanaayi | لوحة التحكم</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #ff5a00; --bg-light: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; background: #667eea; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .app-frame { background: var(--bg-light); width: 100%; max-width: 420px; height: 90vh; border-radius: 40px; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.3); }
+        
+        .header { background: white; padding: 40px 25px 20px; border-radius: 0 0 30px 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .status-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; background: #fff5f0; padding: 10px 15px; border-radius: 15px; }
+        
+        .content { flex: 1; overflow-y: auto; padding: 20px; }
+        .order-card { background: white; padding: 15px; border-radius: 20px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.03); border-right: 5px solid var(--primary); }
+        .order-card h4 { margin: 0 0 5px; color: #333; }
+        .order-card p { margin: 3px 0; font-size: 13px; color: #666; }
+        .actions { display: flex; gap: 10px; margin-top: 12px; }
+        .btn { flex: 1; padding: 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn-accept { background: #28a745; color: white; }
+        .btn-reject { background: #dc3545; color: white; }
+        
+        .bottom-nav { background: white; height: 70px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); }
+        .hidden { display: none; }
+    .order-info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0;
+    font-size: 13px;
+    color: #444;
+}
+.order-info-row i {
+    color: var(--primary);
+    width: 16px;
+}
+.phone-link {
+    color: #28a745;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+    </style>
+</head>
+<body>
+
+<div class="app-frame">
+    <div class="header">
+        <h2 id="provName">يا هندسة</h2>
+        <p id="provSpec" style="color: #888; margin: 0;"></p>
+        <div class="status-bar">
+            <span>حالة العمل الآن:</span>
+            <button onclick="toggleOnline()" id="statusBtn" class="btn" style="max-width: 100px; background: #28a745; color: white;">متاح</button>
+        </div>
+    </div>
+
+    <div class="content" id="ordersList">
+        <h3>الطلبات الجديدة</h3>
+        <p style="text-align: center; color: #888;">جاري تحميل الطلبات...</p>
+    </div>
+
+    <div class="bottom-nav">
+        <div style="color: var(--primary);"><i class="fa-solid fa-list-check"></i><br><small>الطلبات</small></div>
+        <div onclick="auth.signOut()"><i class="fa-solid fa-right-from-bracket"></i><br><small>خروج</small></div>
+    </div>
+</div>
+<div id="finishOrderModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;">
+    <div style="background:white; width:100%; max-width:380px; border-radius:25px; padding:20px; max-height:90vh; overflow-y:auto;">
+        <h3 style="margin-top:0; color:var(--primary);">تقرير إنهاء المهمة</h3>
+        <p style="font-size:12px; color:#666;">يرجى إرسال نسبة المنصة على رقم: <b style="color:#d63384;">01104452609</b> (فودافون كاش)</p>
+        
+        <label style="display:block; font-size:13px; margin-bottom:5px;">إجمالي المبلغ المحصل من العميل:</label>
+        <input type="number" id="finalPriceInput" placeholder="أدخل المبلغ هنا" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:15px;">
+
+        <label style="display:block; font-size:13px; margin-bottom:5px;">رابط صورة إثبات الدفع (سكرين شوت):</label>
+        <input type="url" id="payImgLink" placeholder="ضع رابط الصورة هنا" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:15px;">
+
+        <label style="display:block; font-size:13px; margin-bottom:5px;">رابط صورة الشغل (قبل):</label>
+        <input type="url" id="beforeImgLink" placeholder="رابط صورة قبل" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:15px;">
+
+        <label style="display:block; font-size:13px; margin-bottom:5px;">رابط صورة الشغل (بعد):</label>
+        <input type="url" id="afterImgLink" placeholder="رابط صورة بعد" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:15px;">
+
+        <button onclick="submitFinalReport()" id="confirmFinishBtn" style="width:100%; background:var(--primary); color:white; border:none; padding:12px; border-radius:12px; margin-top:20px; font-weight:bold;">إرسال وإنهاء الطلب</button>
+        <button onclick="document.getElementById('finishOrderModal').style.display='none'" style="width:100%; background:#eee; border:none; padding:10px; border-radius:12px; margin-top:10px;">إلغاء</button>
+    </div>
+</div>
+
+    
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, updateDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBuFYQuJxjinz7_0yTCTO-0jnvjeg-iXoQ",
+        authDomain: "sanaayi.firebaseapp.com",
+        projectId: "sanaayi",
+        storageBucket: "sanaayi.firebasestorage.app",
+        messagingSenderId: "657863522339",
+        appId: "1:657863522339:web:f7ad44ca81147d0d519996"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let isOnline = true;
+
+    // 1. فحص الصنايعي
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                if(data.role !== 'provider') window.location.href = "client.html";
+                
+                document.getElementById('provName').innerText = `يا ${data.name.split(' ')[0]}`;
+                document.getElementById('provSpec').innerText = `فني ${data.specialization}`;
+                isOnline = data.isOnline;
+                updateStatusUI();
+                listenToOrders(user.uid);
+            }
+        } else { window.location.href = "index.html"; }
+    });
+
+    // 2. تحديث حالة الاتصال
+        // 2. تحديث حالة الاتصال (متاح / مشغول)
+    window.toggleOnline = async () => {
+        try {
+            // عكس الحالة الحالية
+            const newStatus = !isOnline;
+            
+            // تحديث Firestore
+            await updateDoc(doc(db, "users", auth.currentUser.uid), { 
+                isOnline: newStatus 
+            });
+            
+            // تحديث المتغير المحلي والواجهة
+            isOnline = newStatus;
+            updateStatusUI();
+            
+            // رسالة تأكيد بسيطة
+            const msg = isOnline ? "أنت الآن متاح لاستقبال الطلبات" : "تم تحويل حالتك لمشغول، لن تظهر للعملاء الآن";
+            console.log(msg); 
+        } catch (e) {
+            alert("حدث خطأ في تحديث الحالة: " + e.message);
+        }
+    };
+
+    function updateStatusUI() {
+        const btn = document.getElementById('statusBtn');
+        const statusBar = document.querySelector('.status-bar');
+        
+        if (isOnline) {
+            btn.innerText = "متاح";
+            btn.style.background = "#28a745"; // أخضر
+            statusBar.style.background = "#eafaf1"; // خلفية خضراء فاتحة
+        } else {
+            btn.innerText = "مشغول";
+            btn.style.background = "#6c757d"; // رمادي
+            statusBar.style.background = "#f8f9fa"; // خلفية رمادية فاتحة
+        }
+    }
+
+
+    // 3. سماع الطلبات الجديدة (Real-time)
+    function listenToOrders(provId) {
+    // نجلب تخصص الفني من الواجهة (تأكد أن النص مطابق لما في قاعدة البيانات)
+    const mySpecialization = document.getElementById('provSpec').innerText.replace('فني ', '').trim();
+
+    // الاستعلام المزدوج: 
+    // 1. طلبات موجهة لي شخصياً (pending أو accepted)
+    // 2. أو طلبات عامة (providerId == null) وفي نفس تخصصي
+    const q = query(collection(db, "orders"), 
+                    where("status", "in", ["pending", "accepted"]));
+
+    onSnapshot(q, (snapshot) => {
+        const list = document.getElementById('ordersList');
+        list.innerHTML = '<h3>المهام المتاحة</h3>';
+        
+        let hasOrders = false;
+
+        snapshot.forEach((docSnap) => {
+            const order = docSnap.data();
+            
+            // فلترة الطلبات برمجياً لضمان الخصوصية والتخصص
+            // اظهر الطلب فقط لو: موجه لي OR (عام + نفس تخصصي + لم أرفضه أنا مسبقاً)
+            const isMyDirectOrder = order.providerId === provId;
+            const isPublicOrder = !order.providerId && order.specialization === mySpecialization;
+
+            if (isMyDirectOrder || isPublicOrder) {
+                hasOrders = true;
+                const isPending = order.status === 'pending';
+                
+                const orderDate = order.appointment ? new Date(order.appointment).toLocaleString('ar-EG', {
+                    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+                }) : "غير محدد";
+
+                // إذا كان الطلب عاماً، نغير لون الكارت ليميزه الفني
+                const cardColor = !order.providerId ? '#667eea' : (isPending ? '#ff5a00' : '#28a745');
+                const statusText = !order.providerId ? 'طلب متاح للجميع' : (isPending ? 'طلب جديد' : 'قيد العمل');
+
+                const card = `
+                <div class="order-card" style="border-right: 6px solid ${cardColor}; padding: 18px; position: relative; margin-bottom: 15px; background: white; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.03);">
+                    <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 15px;">
+                        <h4 style="margin:0; font-size: 18px; color: #2d3436;">${order.clientName}</h4>
+                        <span style="background: ${!order.providerId ? '#f0f4ff' : (isPending ? '#fff5f0' : '#eafaf1')}; color: ${cardColor}; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; border: 1px solid ${cardColor}33;">
+                            ${statusText}
+                        </span>
+                    </div>
+
+                    <div style="display: grid; gap: 10px; margin-bottom: 20px;">
+                        <div class="order-info-row"><i class="fa-solid fa-location-dot"></i> <span>${order.address}</span></div>
+                        <div class="order-info-row"><i class="fa-solid fa-calendar-day"></i> <span>${orderDate}</span></div>
+                        <div class="order-info-row"><i class="fa-solid fa-pen-to-square"></i> <span style="font-style: italic;">"${order.description}"</span></div>
+                    </div>
+
+                    <div style="background: #f8f9fa; border-radius: 15px; padding: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                        <span style="font-weight: bold; color: #2d3436;"><i class="fa-solid fa-phone" style="color:#28a745;"></i> ${order.clientPhone || '---'}</span>
+                        <a href="tel:${order.clientPhone}" class="btn-call" style="background:#28a745; color:white; padding:5px 15px; border-radius:8px; text-decoration:none; font-size:12px;">اتصال</a>
+                    </div>
+
+                    <div class="actions" style="display: flex; gap: 10px;">
+                        ${isPending ? `
+                            <button class="btn btn-accept" onclick="updateOrderStatus('${docSnap.id}', 'accepted')" style="flex: 2; background:#28a745; color:white; height:45px; border-radius:12px;">قبول المهمة</button>
+                            <button class="btn btn-reject" onclick="updateOrderStatus('${docSnap.id}', 'rejected')" style="flex: 1; background:white; border:1px solid #dc3545; color:#dc3545; height:45px; border-radius:12px;">رفض</button>
+                        ` : `
+                            <button class="btn" style="background: #007bff; color: white; flex: 1; height: 45px; border-radius: 12px;" onclick="location.href='chat.html?orderId=${docSnap.id}'">مراسلة</button>
+                            <button class="btn" style="background: #1e293b; color: white; flex: 1; height: 45px; border-radius: 12px;" onclick="updateOrderStatus('${docSnap.id}', 'completed')">إنهاء</button>
+                        `}
+                    </div>
+                </div>`;
+                list.insertAdjacentHTML('beforeend', card);
+            }
+        });
+
+        if (!hasOrders) {
+            list.innerHTML += '<p style="text-align: center; color: #888; margin-top: 50px;">لا توجد مهام حالياً في تخصصك</p>';
+        }
+    });
+}
+
+
+
+
+    let currentActiveOrderId = null;
+
+// تفتح النافذة عند الضغط على "إنهاء"
+window.updateOrderStatus = async (orderId, newStatus) => {
+    if (newStatus === 'completed') {
+        currentActiveOrderId = orderId;
+        document.getElementById('finishOrderModal').style.display = 'flex';
+        return;
+    }
+    
+    // حالات القبول والرفض العادية
+    try {
+        const orderRef = doc(db, "orders", orderId);
+        if (newStatus === 'rejected') {
+            await updateDoc(orderRef, { status: 'pending', providerId: null });
+            alert("تم رفض الطلب.");
+        } else {
+            await updateDoc(orderRef, { status: newStatus, respondedAt: new Date() });
+            alert("تم قبول الطلب.");
+        }
+    } catch (e) { alert("خطأ: " + e.message); }
+};
+
+// دالة إرسال الروابط لـ Firestore
+window.submitFinalReport = async () => {
+    const price = document.getElementById('finalPriceInput').value;
+    const payUrl = document.getElementById('payImgLink').value;
+    const beforeUrl = document.getElementById('beforeImgLink').value;
+    const afterUrl = document.getElementById('afterImgLink').value;
+    const btn = document.getElementById('confirmFinishBtn');
+
+    // التحقق من أن جميع الخانات ممتلئة وروابط صحيحة (بشكل بسيط)
+    if (!price || !payUrl || !beforeUrl || !afterUrl) {
+        return alert("⚠️ يرجى إدخال المبلغ وجميع روابط الصور المطلوبة");
+    }
+
+    btn.disabled = true;
+    btn.innerText = "جاري الحفظ...";
+
+    try {
+        // تحديث الطلب في Firestore بالروابط فقط
+        await updateDoc(doc(db, "orders", currentActiveOrderId), {
+            status: 'completed',
+            finalPrice: price,
+            paymentProofImg: payUrl,
+            workBeforeImg: beforeUrl,
+            workAfterImg: afterUrl,
+            completedAt: new Date()
+        });
+
+        alert("✅ تم إرسال التقرير بنجاح وإغلاق الطلب.");
+        document.getElementById('finishOrderModal').style.display = 'none';
+        
+        // مسح الخانات بعد النجاح
+        document.getElementById('finalPriceInput').value = '';
+        document.getElementById('payImgLink').value = '';
+        document.getElementById('beforeImgLink').value = '';
+        document.getElementById('afterImgLink').value = '';
+
+    } catch (e) {
+        console.error(e);
+        alert("حدث خطأ أثناء الحفظ: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "إرسال وإنهاء الطلب";
+    }
+};
+
+
+
+    window.auth = { signOut: () => signOut(auth) };
+</script>
+</body>
+</html>
