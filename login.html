@@ -377,25 +377,36 @@
     const email = document.getElementById('lEmail').value.trim();
     const pass = document.getElementById('lPass').value;
 
+    // 1. التحقق من الحقول فارغة
     if(!email || !pass) {
-        return Swal.fire({ icon: 'warning', title: 'بيانات ناقصة', text: 'من فضلك ادخل البريد وكلمة المرور', confirmButtonColor: '#ff5a00' });
+        return Swal.fire({ 
+            icon: 'warning', 
+            title: 'بيانات ناقصة', 
+            text: 'من فضلك ادخل البريد وكلمة المرور', 
+            confirmButtonColor: '#ff5a00' 
+        });
     }
 
     try {
-        Swal.fire({ title: 'جاري التحقق...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        // إظهار مؤشر تحميل
+        Swal.fire({ 
+            title: 'جاري التحقق...', 
+            allowOutsideClick: false, 
+            didOpen: () => { Swal.showLoading(); } 
+        });
 
-        // 1. تسجيل الدخول
+        // 2. محاولة تسجيل الدخول
         const res = await signInWithEmailAndPassword(auth, email, pass);
         const user = res.user;
 
-        // 2. التحقق من تفعيل الإيميل
+        // 3. التحقق: هل الإيميل متفعل؟
         if (!user.emailVerified) {
-            await auth.signOut();
+            await auth.signOut(); // نخرجه فوراً
             return Swal.fire({
                 icon: 'error',
                 title: 'الحساب غير مفعل!',
                 text: 'يجب تفعيل حسابك من خلال الرابط المرسل لبريدك الإلكتروني أولاً.',
-                confirmButtonText: 'إعادة إرسال الرابط',
+                confirmButtonText: 'إرسال رابط جديد',
                 confirmButtonColor: '#ff5a00',
                 showCancelButton: true,
                 cancelButtonText: 'إغلاق'
@@ -407,32 +418,45 @@
             });
         }
 
-        // 3. جلب البيانات من Firestore
+        // 4. جلب بيانات المستخدم من Firestore
         const userSnap = await getDoc(doc(db, "users", user.uid));
         
         if (userSnap.exists()) {
             const userData = userSnap.data();
             
-            // 4. التوجيه الصحيح (هنا الأقواس اتظبطت)
+            // 5. منطق التوجيه الذكي
             if (userData.role === 'provider') {
-                window.location.replace("provider.html"); 
+                // فحص هل أكمل بياناته أم لا
+                if (userData.isProfileComplete === true) {
+                    // مستخدم قديم ومخلص بياناته
+                    window.location.replace("provider-dashboard.html"); 
+                } else {
+                    // مستخدم جديد أو لسه مخلصش بياناته
+                    window.location.replace("provider.html"); 
+                }
             } else {
+                // لو عميل (Client)
                 window.location.replace("client.html");
             }
         } else {
-            Swal.fire({ icon: 'error', title: 'خطأ', text: 'بيانات الحساب غير موجودة في قاعدة البيانات.' });
+            Swal.fire({ 
+                icon: 'error', 
+                title: 'خطأ', 
+                text: 'لم يتم العثور على بيانات لهذا الحساب في قاعدة البيانات.' 
+            });
         }
 
     } catch (e) {
-        console.error("Login Error:", e.code);
+        console.error("Login Error Code:", e.code);
         let errorMsg = "تأكد من البريد الإلكتروني وكلمة المرور وحاول مرة أخرى.";
         
         if (e.code === 'auth/user-not-found') errorMsg = "هذا البريد الإلكتروني غير مسجل لدينا.";
         else if (e.code === 'auth/wrong-password') errorMsg = "كلمة المرور التي أدخلتها غير صحيحة.";
-        else if (e.code === 'auth/network-request-failed') errorMsg = "فشل الاتصال بالإنترنت.";
+        else if (e.code === 'auth/invalid-credential') errorMsg = "بيانات الدخول غير صحيحة.";
+        else if (e.code === 'auth/network-request-failed') errorMsg = "فشل الاتصال بالإنترنت، تحقق من شبكتك.";
 
         Swal.fire({
-            title: 'عذراً، لم نتمكن من الدخول',
+            title: 'عذراً، فشل الدخول',
             text: errorMsg,
             icon: 'error',
             confirmButtonText: 'إعادة المحاولة',
